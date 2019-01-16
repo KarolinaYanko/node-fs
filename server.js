@@ -4,7 +4,7 @@ var fs = require('fs');
 var url = require('url');
 var path = require('path');
 
-var ROOT = __dirname + '/public';
+var ROOT = '/public';
 
 http.createServer(function(req, res){
 	if(!checkAccess(req)){
@@ -13,7 +13,7 @@ http.createServer(function(req, res){
 		return;
 	}
 
-	sendFileSafe(url.parse(req.url).pathname, res);
+	sendFileSafe(url.parse(req.url, true).pathname, res);
 }).listen(3000);
 
 function checkAccess (req) {
@@ -35,13 +35,15 @@ function sendFileSafe (filePath, res) {
 		return;
 	}
 
-	filePath.normalize(path.join(ROOT, filePath));
+	filePath.normalize('NFC', path.join(ROOT, filePath));
 
 	if(filePath.indexOf(ROOT) !=0){
 		res.statusCode = 404;
 		res.end('File Not Found');
 		return;
 	}
+
+  filePath = path.join(__dirname,filePath);
 
 	fs.stat(filePath, function(err, stats){
 		if(err || !stats.isFile()){
@@ -54,12 +56,30 @@ function sendFileSafe (filePath, res) {
 	});
 }
 
+const mimeType = {
+	"js": "text/javascript",
+	"css": "text/css",
+	"png": "image/png",
+	"jpg": "image/jpg",
+	"gif": "image/gif",
+	"html": "text/html",
+	"txt": "application/text"
+};
+
 function sendFile (filePath, res) {
 	fs.readFile(filePath, function(err, content){
 		if(err) throw err;
 
-		var mime = require('mime').lookup(filePath);
-		res.setHeader('Content-Type', mime + '; charset=utf-8');
+    let extFileName = path.extname(filePath)
+        .split('.')
+        .pop()
+        .toLowerCase();
+
+    if (!extFileName) {
+        extFileName = filePath;
+    }
+		
+		res.setHeader('Content-Type', mimeType[extFileName] || mimeType['txt']);
 		res.end(content);
 	});
 }
